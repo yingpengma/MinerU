@@ -3,6 +3,7 @@ import os
 import click
 from pathlib import Path
 from loguru import logger
+import sys
 
 from mineru.utils.config_reader import get_device
 from mineru.utils.model_utils import get_vram
@@ -138,12 +139,21 @@ from .common import do_parse, read_fn, pdf_suffixes, image_suffixes
     '--show_progress',
     'show_progress',
     type=bool,
-    help='Enable tqdm progress bar display. Default is True.',
+    help='Enable tqdm progress bar display. Default is False.',
     default=False,
 )
+@click.option(
+    '--log_level',
+    'log_level',
+    type=click.Choice(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']),
+    help='Set the logging level. Default is INFO.',
+    default='INFO',
+)
 
-
-def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress):
+def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress, log_level):
+    # 设置日志级别
+    logger.remove()  # 移除默认的处理器
+    logger.add(sys.stderr, level=log_level)  # 添加新的处理器，使用指定的日志级别
 
     if not backend.endswith('-client'):
         def get_device_mode() -> str:
