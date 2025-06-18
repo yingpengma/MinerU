@@ -72,6 +72,7 @@ def doc_analyze(
         parse_method: str = 'auto',
         formula_enable=True,
         table_enable=True,
+        show_progress=True,
 ):
     """
     适当调大MIN_BATCH_INFERENCE_SIZE可以提高性能，可能会增加显存使用量，

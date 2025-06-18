@@ -93,6 +93,7 @@ def do_parse(
     f_make_md_mode=MakeMode.MM_MD,
     start_page_id=0,
     end_page_id=None,
+    show_progress=True,
 ):
 
     if backend == "pipeline":
@@ -105,7 +106,7 @@ def do_parse(
             new_pdf_bytes = convert_pdf_bytes_to_bytes_by_pypdfium2(pdf_bytes, start_page_id, end_page_id)
             pdf_bytes_list[idx] = new_pdf_bytes
 
-        infer_results, all_image_lists, all_pdf_docs, lang_list, ocr_enabled_list = pipeline_doc_analyze(pdf_bytes_list, p_lang_list, parse_method=parse_method, formula_enable=p_formula_enable,table_enable=p_table_enable)
+        infer_results, all_image_lists, all_pdf_docs, lang_list, ocr_enabled_list = pipeline_doc_analyze(pdf_bytes_list, p_lang_list, parse_method=parse_method, formula_enable=p_formula_enable,table_enable=p_table_enable, show_progress=show_progress)
 
         for idx, model_list in enumerate(infer_results):
             model_json = copy.deepcopy(model_list)
@@ -176,7 +177,7 @@ def do_parse(
             pdf_bytes = convert_pdf_bytes_to_bytes_by_pypdfium2(pdf_bytes, start_page_id, end_page_id)
             local_image_dir, local_md_dir = prepare_env(output_dir, pdf_file_name, parse_method)
             image_writer, md_writer = FileBasedDataWriter(local_image_dir), FileBasedDataWriter(local_md_dir)
-            middle_json, infer_result = vlm_doc_analyze(pdf_bytes, image_writer=image_writer, backend=backend, server_url=server_url)
+            middle_json, infer_result = vlm_doc_analyze(pdf_bytes, image_writer=image_writer, backend=backend, server_url=server_url, show_progress=show_progress)
 
             pdf_info = middle_json["pdf_info"]
 
@@ -215,10 +216,9 @@ def do_parse(
                 )
 
             if f_dump_model_output:
-                model_output = ("\n" + "-" * 50 + "\n").join(infer_result)
                 md_writer.write_string(
-                    f"{pdf_file_name}_model_output.txt",
-                    model_output,
+                    f"{pdf_file_name}_model.json",
+                    json.dumps(infer_result, ensure_ascii=False, indent=4),
                 )
 
             logger.info(f"local output dir is {local_md_dir}")

@@ -134,9 +134,16 @@ from .common import do_parse, read_fn, pdf_suffixes, image_suffixes
     """,
     default='huggingface',
 )
+@click.option(
+    '--show_progress',
+    'show_progress',
+    type=bool,
+    help='Enable tqdm progress bar display. Default is True.',
+    default=False,
+)
 
 
-def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source):
+def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress):
 
     if not backend.endswith('-client'):
         def get_device_mode() -> str:
@@ -183,7 +190,8 @@ def main(input_path, output_dir, method, backend, lang, server_url, start_page_i
                 p_table_enable=table_enable,
                 server_url=server_url,
                 start_page_id=start_page_id,
-                end_page_id=end_page_id
+                end_page_id=end_page_id,
+                show_progress=show_progress
             )
         except Exception as e:
             logger.exception(e)

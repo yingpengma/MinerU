@@ -45,6 +45,7 @@ def doc_analyze(
     backend="transformers",
     model_path: str | None = None,
     server_url: str | None = None,
+    show_progress=True,
 ):
     if predictor is None:
         predictor = ModelSingleton().get_model(backend, model_path, server_url)
@@ -71,6 +72,7 @@ async def aio_doc_analyze(
     backend="transformers",
     model_path: str | None = None,
     server_url: str | None = None,
+    show_progress=True,
 ):
     if predictor is None:
         predictor = ModelSingleton().get_model(backend, model_path, server_url)

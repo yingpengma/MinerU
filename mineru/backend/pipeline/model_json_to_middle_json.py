@@ -163,7 +163,7 @@ def page_model_info_to_page_info(page_model_info, image_dict, page, image_writer
     return page_info
 
 
-def result_to_middle_json(model_list, images_list, pdf_doc, image_writer, lang=None, ocr_enable=False, formula_enabled=True):
+def result_to_middle_json(model_list, images_list, pdf_doc, image_writer, lang=None, ocr_enable=False, formula_enabled=True, show_progress=True):
     middle_json = {"pdf_info": [], "_backend":"pipeline", "_version_name": __version__}
     formula_enabled = get_formula_enable(formula_enabled)
     for page_index, page_model_info in tqdm(enumerate(model_list), total=len(model_list), desc="Processing pages"):
@@ -206,7 +206,7 @@ def result_to_middle_json(model_list, images_list, pdf_doc, image_writer, lang=N
             det_db_box_thresh=0.3,
             lang=lang
         )
-        ocr_res_list = ocr_model.ocr(img_crop_list, det=False, tqdm_enable=True)[0]
+        ocr_res_list = ocr_model.ocr(img_crop_list, det=False, tqdm_enable=show_progress)[0]
         assert len(ocr_res_list) == len(
             need_ocr_list), f'ocr_res_list: {len(ocr_res_list)}, need_ocr_list: {len(need_ocr_list)}'
         for index, span in enumerate(need_ocr_list):
