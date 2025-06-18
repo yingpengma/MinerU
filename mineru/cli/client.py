@@ -4,6 +4,7 @@ import click
 from pathlib import Path
 from loguru import logger
 import sys
+import logging
 
 from mineru.utils.config_reader import get_device
 from mineru.utils.model_utils import get_vram
@@ -151,9 +152,13 @@ from .common import do_parse, read_fn, pdf_suffixes, image_suffixes
 )
 
 def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress, log_level):
-    # 设置日志级别
-    logger.remove()  # 移除默认的处理器
-    logger.add(sys.stderr, level=log_level)  # 添加新的处理器，使用指定的日志级别
+    # 设置loguru日志级别
+    logger.remove()
+    logger.add(sys.stderr, level=log_level)
+    # 设置标准库logging日志级别
+    logging.basicConfig(level=getattr(logging, log_level))
+    for name in logging.root.manager.loggerDict:
+        logging.getLogger(name).setLevel(getattr(logging, log_level))
 
     if not backend.endswith('-client'):
         def get_device_mode() -> str:

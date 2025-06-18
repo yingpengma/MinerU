@@ -110,7 +110,7 @@ class UnimernetModel(object):
         mfr_res = []
         # for mf_img in dataloader:
 
-        with tqdm(total=len(sorted_images), desc="MFR Predict") as pbar:
+        with tqdm(total=len(sorted_images), desc="MFR Predict", disable=not self.show_progress) as pbar:
             for index, mf_img in enumerate(dataloader):
                 mf_img = mf_img.to(dtype=self.model.dtype)
                 mf_img = mf_img.to(self.device)

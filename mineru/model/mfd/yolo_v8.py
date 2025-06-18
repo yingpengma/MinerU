@@ -3,9 +3,10 @@ from ultralytics import YOLO
 
 
 class YOLOv8MFDModel(object):
-    def __init__(self, weight, device="cpu"):
+    def __init__(self, weight, device="cpu", show_progress=True):
         self.mfd_model = YOLO(weight)
         self.device = device
+        self.show_progress = show_progress
 
     def predict(self, image):
         mfd_res = self.mfd_model.predict(
@@ -16,7 +17,7 @@ class YOLOv8MFDModel(object):
     def batch_predict(self, images: list, batch_size: int) -> list:
         images_mfd_res = []
         # for index in range(0, len(images), batch_size):
-        for index in tqdm(range(0, len(images), batch_size), desc="MFD Predict"):
+        for index in tqdm(range(0, len(images), batch_size), desc="MFD Predict", disable=not self.show_progress):
             mfd_res = [
                 image_res.cpu()
                 for image_res in self.mfd_model.predict(

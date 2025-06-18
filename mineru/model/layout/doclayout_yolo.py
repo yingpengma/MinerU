@@ -3,9 +3,10 @@ from tqdm import tqdm
 
 
 class DocLayoutYOLOModel(object):
-    def __init__(self, weight, device):
+    def __init__(self, weight, device, show_progress=True):
         self.model = YOLOv10(weight)
         self.device = device
+        self.show_progress = show_progress
 
     def predict(self, image):
         layout_res = []
@@ -32,8 +33,7 @@ class DocLayoutYOLOModel(object):
 
     def batch_predict(self, images: list, batch_size: int) -> list:
         images_layout_res = []
-        # for index in range(0, len(images), batch_size):
-        for index in tqdm(range(0, len(images), batch_size), desc="Layout Predict"):
+        for index in tqdm(range(0, len(images), batch_size), desc="Layout Predict", disable=not self.show_progress):
             doclayout_yolo_res = [
                 image_res.cpu()
                 for image_res in self.model.predict(

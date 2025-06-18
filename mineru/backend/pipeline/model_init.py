@@ -25,22 +25,22 @@ def table_model_init(lang=None):
     return table_model
 
 
-def mfd_model_init(weight, device='cpu'):
+def mfd_model_init(weight, device='cpu', show_progress=True):
     if str(device).startswith('npu'):
         device = torch.device(device)
-    mfd_model = YOLOv8MFDModel(weight, device)
+    mfd_model = YOLOv8MFDModel(weight, device, show_progress=show_progress)
     return mfd_model
 
 
-def mfr_model_init(weight_dir, device='cpu'):
-    mfr_model = UnimernetModel(weight_dir, device)
+def mfr_model_init(weight_dir, device='cpu', show_progress=True):
+    mfr_model = UnimernetModel(weight_dir, device, show_progress=show_progress)
     return mfr_model
 
 
-def doclayout_yolo_model_init(weight, device='cpu'):
+def doclayout_yolo_model_init(weight, device='cpu', show_progress=True):
     if str(device).startswith('npu'):
         device = torch.device(device)
-    model = DocLayoutYOLOModel(weight, device)
+    model = DocLayoutYOLOModel(weight, device, show_progress=show_progress)
     return model
 
 def ocr_model_init(det_db_box_thresh=0.3,
@@ -91,20 +91,24 @@ class AtomModelSingleton:
 
 def atom_model_init(model_name: str, **kwargs):
     atom_model = None
+    show_progress = kwargs.get('show_progress', True)
     if model_name == AtomicModel.Layout:
         atom_model = doclayout_yolo_model_init(
             kwargs.get('doclayout_yolo_weights'),
-            kwargs.get('device')
+            kwargs.get('device'),
+            show_progress=show_progress
         )
     elif model_name == AtomicModel.MFD:
         atom_model = mfd_model_init(
             kwargs.get('mfd_weights'),
-            kwargs.get('device')
+            kwargs.get('device'),
+            show_progress=show_progress
         )
     elif model_name == AtomicModel.MFR:
         atom_model = mfr_model_init(
             kwargs.get('mfr_weight_dir'),
-            kwargs.get('device')
+            kwargs.get('device'),
+            show_progress=show_progress
         )
     elif model_name == AtomicModel.OCR:
         atom_model = ocr_model_init(
@@ -134,6 +138,7 @@ class MineruPipelineModel:
         self.apply_table = self.table_config.get('enable', True)
         self.lang = kwargs.get('lang', None)
         self.device = kwargs.get('device', 'cpu')
+        self.show_progress = kwargs.get('show_progress', True)
         logger.info(
             'DocAnalysis init, this may take some times......'
         )
@@ -147,6 +152,7 @@ class MineruPipelineModel:
                     os.path.join(auto_download_and_get_model_root_path(ModelPath.yolo_v8_mfd), ModelPath.yolo_v8_mfd)
                 ),
                 device=self.device,
+                show_progress=self.show_progress,
             )
 
             # 初始化公式解析模型
@@ -156,6 +162,7 @@ class MineruPipelineModel:
                 atom_model_name=AtomicModel.MFR,
                 mfr_weight_dir=mfr_weight_dir,
                 device=self.device,
+                show_progress=self.show_progress,
             )
 
         # 初始化layout模型
@@ -165,6 +172,7 @@ class MineruPipelineModel:
                 os.path.join(auto_download_and_get_model_root_path(ModelPath.doclayout_yolo), ModelPath.doclayout_yolo)
             ),
             device=self.device,
+            show_progress=self.show_progress,
         )
         # 初始化ocr
         self.ocr_model = atom_model_manager.get_atom_model(

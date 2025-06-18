@@ -15,12 +15,13 @@ MFR_BASE_BATCH_SIZE = 16
 
 
 class BatchAnalyze:
-    def __init__(self, model_manager, batch_ratio: int, formula_enable, table_enable, enable_ocr_det_batch: bool = True):
+    def __init__(self, model_manager, batch_ratio: int, formula_enable, table_enable, enable_ocr_det_batch: bool = True, show_progress=True):
         self.batch_ratio = batch_ratio
         self.formula_enable = get_formula_enable(formula_enable)
         self.table_enable = get_table_enable(table_enable)
         self.model_manager = model_manager
         self.enable_ocr_det_batch = enable_ocr_det_batch
+        self.show_progress = show_progress
 
     def __call__(self, images_with_extra_info: list) -> list:
         if len(images_with_extra_info) == 0:
@@ -32,6 +33,7 @@ class BatchAnalyze:
             lang=None,
             formula_enable=self.formula_enable,
             table_enable=self.table_enable,
+            show_progress=self.show_progress,
         )
         atom_model_manager = AtomModelSingleton()
 
@@ -150,7 +152,7 @@ class BatchAnalyze:
                     resolution_groups[group_key].append(crop_info)
 
                 # 对每个分辨率组进行批处理
-                for group_key, group_crops in tqdm(resolution_groups.items(), desc=f"OCR-det {lang}"):
+                for group_key, group_crops in tqdm(resolution_groups.items(), desc=f"OCR-det {lang}", disable=not self.show_progress):
 
                     # 计算目标尺寸（组内最大尺寸，向上取整到32的倍数）
                     max_h = max(crop_info[0].shape[0] for crop_info in group_crops)
@@ -213,7 +215,7 @@ class BatchAnalyze:
                                 ocr_res_list_dict['layout_res'].extend(ocr_result_list)
         else:
             # 原始单张处理模式
-            for ocr_res_list_dict in tqdm(ocr_res_list_all_page, desc="OCR-det Predict"):
+            for ocr_res_list_dict in tqdm(ocr_res_list_all_page, desc="OCR-det Predict", disable=not self.show_progress):
                 # Process each area that requires OCR processing
                 _lang = ocr_res_list_dict['lang']
                 # Get OCR results for this language's images
@@ -246,7 +248,7 @@ class BatchAnalyze:
 
         # 表格识别 table recognition
         if self.table_enable:
-            for table_res_dict in tqdm(table_res_list_all_page, desc="Table Predict"):
+            for table_res_dict in tqdm(table_res_list_all_page, desc="Table Predict", disable=not self.show_progress):
                 _lang = table_res_dict['lang']
                 table_model = atom_model_manager.get_atom_model(
                     atom_model_name='table',
@@ -305,7 +307,7 @@ class BatchAnalyze:
                         det_db_box_thresh=0.3,
                         lang=lang
                     )
-                    ocr_res_list = ocr_model.ocr(img_crop_list, det=False, tqdm_enable=True)[0]
+                    ocr_res_list = ocr_model.ocr(img_crop_list, det=False, tqdm_enable=self.show_progress)[0]
 
                     # Verify we have matching counts
                     assert len(ocr_res_list) == len(
