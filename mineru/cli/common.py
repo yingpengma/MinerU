@@ -94,6 +94,7 @@ def do_parse(
     start_page_id=0,
     end_page_id=None,
     show_progress=True,
+    displayer=None,
 ):
 
     if backend == "pipeline":
@@ -106,7 +107,7 @@ def do_parse(
             new_pdf_bytes = convert_pdf_bytes_to_bytes_by_pypdfium2(pdf_bytes, start_page_id, end_page_id)
             pdf_bytes_list[idx] = new_pdf_bytes
 
-        infer_results, all_image_lists, all_pdf_docs, lang_list, ocr_enabled_list = pipeline_doc_analyze(pdf_bytes_list, p_lang_list, parse_method=parse_method, formula_enable=p_formula_enable,table_enable=p_table_enable, show_progress=show_progress)
+        infer_results, all_image_lists, all_pdf_docs, lang_list, ocr_enabled_list = pipeline_doc_analyze(pdf_bytes_list, p_lang_list, parse_method=parse_method, formula_enable=p_formula_enable,table_enable=p_table_enable, show_progress=show_progress, displayer=displayer)
 
         for idx, model_list in enumerate(infer_results):
             model_json = copy.deepcopy(model_list)
@@ -165,6 +166,9 @@ def do_parse(
                 )
 
             logger.info(f"local output dir is {local_md_dir}")
+            # 显示成功信息
+            if displayer:
+                displayer.success(f"太棒了！处理完成，所有结果已保存至：{local_md_dir}")
     else:
 
         if backend.startswith("vlm-"):
@@ -222,6 +226,9 @@ def do_parse(
                 )
 
             logger.info(f"local output dir is {local_md_dir}")
+            # 显示成功信息
+            if displayer:
+                displayer.success(f"太棒了！处理完成，所有结果已保存至：{local_md_dir}")
 
 
 

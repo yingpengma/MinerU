@@ -55,10 +55,13 @@ class PytorchPaddleOCR(TextSystem):
         args = parser.parse_args(args)
 
         self.lang = kwargs.get('lang', 'ch')
+        self.displayer = kwargs.get('displayer', None)
 
         device = get_device()
         if device == 'cpu' and self.lang in ['ch', 'ch_server', 'japan', 'chinese_cht']:
             logger.warning("The current device in use is CPU. To ensure the speed of parsing, the language is automatically switched to ch_lite.")
+            if self.displayer:
+                self.displayer.show("💡 提示：检测到您在使用CPU，系统已自动切换到轻量模式以提升处理速度。")
             self.lang = 'ch_lite'
 
         if self.lang in latin_lang:

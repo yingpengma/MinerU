@@ -15,13 +15,14 @@ MFR_BASE_BATCH_SIZE = 16
 
 
 class BatchAnalyze:
-    def __init__(self, model_manager, batch_ratio: int, formula_enable, table_enable, enable_ocr_det_batch: bool = True, show_progress=True):
+    def __init__(self, model_manager, batch_ratio: int, formula_enable, table_enable, enable_ocr_det_batch: bool = True, show_progress=True, displayer=None):
         self.batch_ratio = batch_ratio
         self.formula_enable = get_formula_enable(formula_enable)
         self.table_enable = get_table_enable(table_enable)
         self.model_manager = model_manager
         self.enable_ocr_det_batch = enable_ocr_det_batch
         self.show_progress = show_progress
+        self.displayer = displayer
 
     def __call__(self, images_with_extra_info: list) -> list:
         if len(images_with_extra_info) == 0:
@@ -34,6 +35,7 @@ class BatchAnalyze:
             formula_enable=self.formula_enable,
             table_enable=self.table_enable,
             show_progress=self.show_progress,
+            displayer=self.displayer,
         )
         atom_model_manager = AtomModelSingleton()
 
@@ -44,12 +46,19 @@ class BatchAnalyze:
         for image_index, image in enumerate(images):
             layout_images.append(image)
 
+        # 显示第1步：分析文档的整体页面布局
+        if self.displayer:
+            self.displayer.show("第 1 步：分析文档的整体页面布局...", is_major_step=True)
 
         images_layout_res += self.model.layout_model.batch_predict(
             layout_images, YOLO_LAYOUT_BASE_BATCH_SIZE
         )
 
         if self.formula_enable:
+            # 显示第2步：识别和解析文档中的数学公式
+            if self.displayer:
+                self.displayer.show("第 2 步：识别和解析文档中的数学公式...", is_major_step=True)
+                
             # 公式检测
             images_mfd_res = self.model.mfd_model.batch_predict(
                 images, MFD_BASE_BATCH_SIZE
@@ -95,6 +104,10 @@ class BatchAnalyze:
                                                 'table_img':table_img,
                                               })
 
+        # 显示第3步：提取页面中的所有文字内容
+        if self.displayer:
+            self.displayer.show("第 3 步：提取页面中的所有文字内容...", is_major_step=True)
+
         # OCR检测处理
         if self.enable_ocr_det_batch:
             # 批处理模式 - 按语言和分辨率分组
@@ -136,7 +149,8 @@ class BatchAnalyze:
                 ocr_model = atom_model_manager.get_atom_model(
                     atom_model_name='ocr',
                     det_db_box_thresh=0.3,
-                    lang=lang
+                    lang=lang,
+                    displayer=self.displayer,
                 )
 
                 # 按分辨率分组并同时完成padding
@@ -198,21 +212,23 @@ class BatchAnalyze:
                             else:
                                 dt_boxes_merged = []
 
-                            # 3. 根据公式位置更新检测框（关键步骤！）
-                            if dt_boxes_merged and adjusted_mfdetrec_res:
-                                dt_boxes_final = update_det_boxes(dt_boxes_merged, adjusted_mfdetrec_res)
+                            # 3. 更新检测框坐标
+                            if dt_boxes_merged:
+                                dt_boxes_updated = update_det_boxes(dt_boxes_merged, useful_list)
                             else:
-                                dt_boxes_final = dt_boxes_merged
+                                dt_boxes_updated = []
 
-                            # 构造OCR结果格式
-                            ocr_res = [box.tolist() if hasattr(box, 'tolist') else box for box in dt_boxes_final]
+                            # 4. 应用公式检测结果调整
+                            if adjusted_mfdetrec_res:
+                                dt_boxes_updated = get_adjusted_mfdetrec_res(adjusted_mfdetrec_res, dt_boxes_updated)
 
-                            if ocr_res:
+                            # 5. 生成OCR结果列表
+                            if dt_boxes_updated:
                                 ocr_result_list = get_ocr_result_list(
-                                    ocr_res, useful_list, ocr_res_list_dict['ocr_enable'], new_image, _lang
+                                    dt_boxes_updated, useful_list, ocr_res_list_dict['ocr_enable'], new_image, _lang
                                 )
-
                                 ocr_res_list_dict['layout_res'].extend(ocr_result_list)
+
         else:
             # 原始单张处理模式
             for ocr_res_list_dict in tqdm(ocr_res_list_all_page, desc="OCR-det Predict", disable=not self.show_progress):
@@ -223,7 +239,8 @@ class BatchAnalyze:
                     atom_model_name='ocr',
                     ocr_show_log=False,
                     det_db_box_thresh=0.3,
-                    lang=_lang
+                    lang=_lang,
+                    displayer=self.displayer,
                 )
                 for res in ocr_res_list_dict['ocr_res_list']:
                     new_image, useful_list = crop_img(
@@ -245,6 +262,10 @@ class BatchAnalyze:
                         )
 
                         ocr_res_list_dict['layout_res'].extend(ocr_result_list)
+
+        # 显示第4步：扫描和重构文档中的表格
+        if self.table_enable and self.displayer:
+            self.displayer.show("第 4 步：扫描和重构文档中的表格...", is_major_step=True)
 
         # 表格识别 table recognition
         if self.table_enable:
@@ -271,26 +292,21 @@ class BatchAnalyze:
 
         # Create dictionaries to store items by language
         need_ocr_lists_by_lang = {}  # Dict of lists for each language
-        img_crop_lists_by_lang = {}  # Dict of lists for each language
+        img_crop_lists_by_lang = {}
 
-        for layout_res in images_layout_res:
-            for layout_res_item in layout_res:
-                if layout_res_item['category_id'] in [15]:
-                    if 'np_img' in layout_res_item and 'lang' in layout_res_item:
-                        lang = layout_res_item['lang']
+        # 收集所有需要OCR识别的文本区域
+        for ocr_res_list_dict in ocr_res_list_all_page:
+            _lang = ocr_res_list_dict['lang']
+            layout_res = ocr_res_list_dict['layout_res']
 
-                        # Initialize lists for this language if not exist
-                        if lang not in need_ocr_lists_by_lang:
-                            need_ocr_lists_by_lang[lang] = []
-                            img_crop_lists_by_lang[lang] = []
-
-                        # Add to the appropriate language-specific lists
-                        need_ocr_lists_by_lang[lang].append(layout_res_item)
-                        img_crop_lists_by_lang[lang].append(layout_res_item['np_img'])
-
-                        # Remove the fields after adding to lists
-                        layout_res_item.pop('np_img')
-                        layout_res_item.pop('lang')
+            for res in layout_res:
+                if res.get('category_id') in [0, 2, 4, 6, 7, 3]:  # OCR regions
+                    if 'np_img' in res:
+                        if _lang not in need_ocr_lists_by_lang:
+                            need_ocr_lists_by_lang[_lang] = []
+                            img_crop_lists_by_lang[_lang] = []
+                        need_ocr_lists_by_lang[_lang].append(res)
+                        img_crop_lists_by_lang[_lang].append(res['np_img'])
 
         if len(img_crop_lists_by_lang) > 0:
 
@@ -305,7 +321,8 @@ class BatchAnalyze:
                     ocr_model = atom_model_manager.get_atom_model(
                         atom_model_name='ocr',
                         det_db_box_thresh=0.3,
-                        lang=lang
+                        lang=lang,
+                        displayer=self.displayer,
                     )
                     ocr_res_list = ocr_model.ocr(img_crop_list, det=False, tqdm_enable=self.show_progress)[0]
 

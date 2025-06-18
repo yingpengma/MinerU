@@ -8,6 +8,7 @@ import logging
 
 from mineru.utils.config_reader import get_device
 from mineru.utils.model_utils import get_vram
+from mineru.utils.user_display import ProgressDisplayer
 from ..version import __version__
 from .common import do_parse, read_fn, pdf_suffixes, image_suffixes
 
@@ -150,8 +151,15 @@ from .common import do_parse, read_fn, pdf_suffixes, image_suffixes
     help='Set the logging level. Default is INFO.',
     default='INFO',
 )
+@click.option(
+    '--user_friendly_progress',
+    'user_friendly_progress',
+    is_flag=True,
+    default=False,
+    help='启用为最终用户设计的、简洁易懂的中文进度显示。',
+)
 
-def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress, log_level):
+def main(input_path, output_dir, method, backend, lang, server_url, start_page_id, end_page_id, formula_enable, table_enable, device_mode, virtual_vram, model_source, show_progress, log_level, user_friendly_progress):
     # 设置loguru日志级别
     logger.remove()
     logger.add(sys.stderr, level=log_level)
@@ -159,6 +167,9 @@ def main(input_path, output_dir, method, backend, lang, server_url, start_page_i
     logging.basicConfig(level=getattr(logging, log_level))
     for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(getattr(logging, log_level))
+
+    # 初始化用户友好的进度显示器
+    displayer = ProgressDisplayer(enabled=user_friendly_progress)
 
     if not backend.endswith('-client'):
         def get_device_mode() -> str:
@@ -188,12 +199,24 @@ def main(input_path, output_dir, method, backend, lang, server_url, start_page_i
             file_name_list = []
             pdf_bytes_list = []
             lang_list = []
+            total_pages = 0
+            
             for path in path_list:
                 file_name = str(Path(path).stem)
                 pdf_bytes = read_fn(path)
                 file_name_list.append(file_name)
                 pdf_bytes_list.append(pdf_bytes)
                 lang_list.append(lang)
+                
+                # 计算总页数
+                import pypdfium2 as pdfium
+                pdf = pdfium.PdfDocument(pdf_bytes)
+                total_pages += len(pdf)
+                pdf.close()
+            
+            # 显示开始处理信息
+            displayer.show(f"收到任务，开始分析这份共 {total_pages} 页的文档...", is_major_step=True)
+            
             do_parse(
                 output_dir=output_dir,
                 pdf_file_names=file_name_list,
@@ -206,7 +229,8 @@ def main(input_path, output_dir, method, backend, lang, server_url, start_page_i
                 server_url=server_url,
                 start_page_id=start_page_id,
                 end_page_id=end_page_id,
-                show_progress=show_progress
+                show_progress=show_progress,
+                displayer=displayer
             )
         except Exception as e:
             logger.exception(e)

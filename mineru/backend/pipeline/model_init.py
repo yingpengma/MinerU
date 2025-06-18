@@ -47,6 +47,7 @@ def ocr_model_init(det_db_box_thresh=0.3,
                    lang=None,
                    use_dilation=True,
                    det_db_unclip_ratio=1.8,
+                   displayer=None,
                    ):
     if lang is not None and lang != '':
         model = PytorchPaddleOCR(
@@ -54,12 +55,14 @@ def ocr_model_init(det_db_box_thresh=0.3,
             lang=lang,
             use_dilation=use_dilation,
             det_db_unclip_ratio=det_db_unclip_ratio,
+            displayer=displayer,
         )
     else:
         model = PytorchPaddleOCR(
             det_db_box_thresh=det_db_box_thresh,
             use_dilation=use_dilation,
             det_db_unclip_ratio=det_db_unclip_ratio,
+            displayer=displayer,
         )
     return model
 
@@ -77,9 +80,10 @@ class AtomModelSingleton:
 
         lang = kwargs.get('lang', None)
         table_model_name = kwargs.get('table_model_name', None)
+        displayer = kwargs.get('displayer', None)
 
         if atom_model_name in [AtomicModel.OCR]:
-            key = (atom_model_name, lang)
+            key = (atom_model_name, lang, displayer)
         elif atom_model_name in [AtomicModel.Table]:
             key = (atom_model_name, table_model_name, lang)
         else:
@@ -114,6 +118,9 @@ def atom_model_init(model_name: str, **kwargs):
         atom_model = ocr_model_init(
             kwargs.get('det_db_box_thresh'),
             kwargs.get('lang'),
+            kwargs.get('use_dilation'),
+            kwargs.get('det_db_unclip_ratio'),
+            kwargs.get('displayer'),
         )
     elif model_name == AtomicModel.Table:
         atom_model = table_model_init(
@@ -139,9 +146,16 @@ class MineruPipelineModel:
         self.lang = kwargs.get('lang', None)
         self.device = kwargs.get('device', 'cpu')
         self.show_progress = kwargs.get('show_progress', True)
+        self.displayer = kwargs.get('displayer', None)
+        
         logger.info(
             'DocAnalysis init, this may take some times......'
         )
+        
+        # 显示模型初始化信息
+        if self.displayer:
+            self.displayer.show("正在加载和初始化核心分析模型...")
+            
         atom_model_manager = AtomModelSingleton()
 
         if self.apply_formula:
@@ -178,7 +192,8 @@ class MineruPipelineModel:
         self.ocr_model = atom_model_manager.get_atom_model(
             atom_model_name=AtomicModel.OCR,
             det_db_box_thresh=0.3,
-            lang=self.lang
+            lang=self.lang,
+            displayer=self.displayer,
         )
         # init table model
         if self.apply_table:
@@ -188,3 +203,7 @@ class MineruPipelineModel:
             )
 
         logger.info('DocAnalysis init done!')
+        
+        # 显示模型准备完毕信息
+        if self.displayer:
+            self.displayer.show("✅ 模型准备完毕，即将开始正式处理。")

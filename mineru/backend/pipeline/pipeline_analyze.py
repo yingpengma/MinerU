@@ -29,6 +29,7 @@ class ModelSingleton:
         formula_enable=None,
         table_enable=None,
         show_progress=True,
+        displayer=None,
     ):
         key = (lang, formula_enable, table_enable, show_progress)
         if key not in self._models:
@@ -37,6 +38,7 @@ class ModelSingleton:
                 formula_enable=formula_enable,
                 table_enable=table_enable,
                 show_progress=show_progress,
+                displayer=displayer,
             )
         return self._models[key]
 
@@ -46,6 +48,7 @@ def custom_model_init(
     formula_enable=True,
     table_enable=True,
     show_progress=True,
+    displayer=None,
 ):
     model_init_start = time.time()
     # 从配置文件读取model-dir和device
@@ -60,6 +63,7 @@ def custom_model_init(
         'formula_config': formula_config,
         'lang': lang,
         'show_progress': show_progress,
+        'displayer': displayer,
     }
 
     custom_model = MineruPipelineModel(**model_input)
@@ -77,6 +81,7 @@ def doc_analyze(
         formula_enable=True,
         table_enable=True,
         show_progress=True,
+        displayer=None,
 ):
     """
     适当调大MIN_BATCH_INFERENCE_SIZE可以提高性能，可能会增加显存使用量，
@@ -130,7 +135,7 @@ def doc_analyze(
             f'Batch {index + 1}/{len(batch_images)}: '
             f'{processed_images_count} pages/{len(images_with_extra_info)} pages'
         )
-        batch_results = batch_image_analyze(batch_image, formula_enable, table_enable, show_progress)
+        batch_results = batch_image_analyze(batch_image, formula_enable, table_enable, show_progress, displayer)
         results.extend(batch_results)
 
     # 构建返回结果
@@ -155,7 +160,8 @@ def batch_image_analyze(
         images_with_extra_info: List[Tuple[PIL.Image.Image, bool, str]],
         formula_enable=True,
         table_enable=True,
-        show_progress=True):
+        show_progress=True,
+        displayer=None):
     # os.environ['CUDA_VISIBLE_DEVICES'] = str(idx)
 
     from .batch_analyze import BatchAnalyze
@@ -196,7 +202,7 @@ def batch_image_analyze(
             batch_ratio = 1
             logger.info(f'Could not determine GPU memory, using default batch_ratio: {batch_ratio}')
 
-    batch_model = BatchAnalyze(model_manager, batch_ratio, formula_enable, table_enable, show_progress=show_progress)
+    batch_model = BatchAnalyze(model_manager, batch_ratio, formula_enable, table_enable, show_progress=show_progress, displayer=displayer)
     results = batch_model(images_with_extra_info)
 
     clean_memory(get_device())
