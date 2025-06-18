@@ -19,7 +19,7 @@ class MathDataset(Dataset):
 
 
 class UnimernetModel(object):
-    def __init__(self, weight_dir, _device_="cpu"):
+    def __init__(self, weight_dir, _device_="cpu", show_progress=True):
         from .unimernet_hf import UnimernetModel
         if _device_.startswith("mps") or _device_.startswith("npu"):
             self.model = UnimernetModel.from_pretrained(weight_dir, attn_implementation="eager")
@@ -30,6 +30,7 @@ class UnimernetModel(object):
         if not _device_.startswith("cpu"):
             self.model = self.model.to(dtype=torch.float16)
         self.model.eval()
+        self.show_progress = show_progress
 
     def predict(self, mfd_res, image):
         formula_list = []
