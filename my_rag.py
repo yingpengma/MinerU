@@ -130,46 +130,74 @@ def run_mineru_rag_pipeline():
 
     # --- STEP 4: 加载或创建持久化索引 (Indexing) ---
     print("\n--- STEP 4: 加载或创建持久化索引 ---")
-    
+
+    # --- 统一修改: 始终使用 ChromaDB 作为向量存储 ---
     persist_dir = "./chroma_db_storage"
-    if os.path.exists(persist_dir):
-        print(f"发现已存在的索引，从 '{persist_dir}' 加载...")
-        db = chromadb.PersistentClient(path=persist_dir)
-        chroma_collection = db.get_or_create_collection("mineru_collection")
-        vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+    db = chromadb.PersistentClient(path=persist_dir)
+    chroma_collection = db.get_or_create_collection("mineru_collection")
+    vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
+
+    # 检查向量存储中是否已有文档，而不是检查目录是否存在
+    if chroma_collection.count() == 0:
+        print("向量存储为空，正在创建新索引...")
+        print("正在调用云服务对所有文本块进行嵌入操作...")
+        
+        # 将 ChromaVectorStore 传递给 StorageContext
+        storage_context = StorageContext.from_defaults(vector_store=vector_store)
+        
+        # 在创建时就明确使用此存储上下文
+        index = VectorStoreIndex.from_documents(
+            documents, storage_context=storage_context, show_progress=True
+        )
+        
+        print("索引创建完成！数据已存入 ChromaDB。")
+    else:
+        print(f"发现已存在的索引 (共 {chroma_collection.count()} 个文档)，正在从 ChromaDB 加载...")
+        # 直接从已配置的 vector_store 加载索引
         index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
         print("索引加载成功！")
-    else:
-        print("未发现本地索引，正在创建新索引...")
-        print("正在调用云服务对所有文本块进行嵌入操作...")
-        index = VectorStoreIndex.from_documents(documents, show_progress=True)
-        print("索引创建完成！现在将其保存到磁盘...")
-        index.storage_context.persist(persist_dir=persist_dir)
-        print(f"索引已成功保存到 '{persist_dir}'。")
 
-    # --- STEP 5: 创建查询引擎并提问 ---
-    print("\n--- STEP 5: 创建查询引擎并提问 ---")
+
+    # --- STEP 5: 创建交互式查询引擎并提问 ---
+    print("\n--- STEP 5: 创建交互式查询引擎 ---")
     
     query_engine = index.as_query_engine(similarity_top_k=3)
-    query = "What is the 'compute-optimal' scaling strategy? Explain it simply."
-    print(f"\n正在执行查询: {query}")
     
-    response = query_engine.query(query)
+    print("\n现在您可以开始提问了。输入 'exit' 退出程序。")
 
-    print("\n--- 最终答案 ---")
-    print(str(response))
+    while True:
+        query = input("\n请输入您的问题: ")
+        if query.lower().strip() == 'exit':
+            print("程序已退出。")
+            break
+        
+        if not query.strip():
+            print("请输入有效的问题。")
+            continue
 
-    print("\n--- 答案来源 (Source Nodes) ---")
-    print("以下是 LLM 用来生成答案的原始文本块及其完整的 JSON 引用：")
-    for i, node in enumerate(response.source_nodes):
-        chunk_id = node.metadata.get('chunk_id')
-        original_chunk_json = reference_map.get(chunk_id)
-        print(f"\n[来源 {i+1} | 相似度: {node.score:.4f} | 页码: {node.metadata.get('page')} | Chunk ID: {chunk_id}]")
-        print("-------------------------- 文本内容 --------------------------")
-        print(node.get_content().strip())
-        print("------------------------ 原始 JSON 引用 ----------------------")
-        print(json.dumps(original_chunk_json, indent=2, ensure_ascii=False))
-        print("------------------------------------------------------------")
+        print(f"\n正在执行查询: {query}")
+        
+        response = query_engine.query(query)
+
+        if response.source_nodes:
+            print("\n--- 答案来源 (Source Nodes) ---")
+            print("以下是 LLM 用来生成答案的原始文本块及其完整的 JSON 引用：")
+            for i, node in enumerate(response.source_nodes):
+                chunk_id = node.metadata.get('chunk_id')
+                original_chunk_json = reference_map.get(chunk_id)
+                print(f"\n[来源 {i+1} | 相似度: {node.score:.4f} | 页码: {node.metadata.get('page')} | Chunk ID: {chunk_id}]")
+                print("-------------------------- 文本内容 --------------------------")
+                print(node.get_content().strip())
+                print("------------------------ 原始 JSON 引用 ----------------------")
+                print(json.dumps(original_chunk_json, indent=2, ensure_ascii=False))
+                print("------------------------------------------------------------")
+        else:
+            print("\n--- 答案来源 (Source Nodes) ---")
+            print("没有找到相关的来源文档。")
+        
+        print("\n--- 最终答案 ---")
+        print(str(response))
+
 
 if __name__ == "__main__":
     run_mineru_rag_pipeline()
