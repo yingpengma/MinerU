@@ -11,6 +11,7 @@ import cv2
 import torch
 from shapely.geometry import Polygon
 import pyclipper
+import math
 
 
 class DBPostProcess(object):
@@ -88,8 +89,21 @@ class DBPostProcess(object):
 
     def unclip(self, box):
         unclip_ratio = self.unclip_ratio
+        if not isinstance(box, np.ndarray):
+            box = np.array(box)
+        if box.shape[0] < 3:
+            return box
         poly = Polygon(box)
-        distance = poly.area * unclip_ratio / poly.length
+        try:
+            if (not poly.is_valid or
+                poly.area is None or poly.length is None or
+                float(poly.area) <= 0 or float(poly.length) <= 0 or
+                (isinstance(poly.area, float) and math.isnan(poly.area)) or
+                (isinstance(poly.length, float) and math.isnan(poly.length))):
+                return box
+            distance = float(poly.area) * unclip_ratio / float(poly.length)
+        except Exception:
+            return box
         offset = pyclipper.PyclipperOffset()
         offset.AddPath(box, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
         expanded = np.array(offset.Execute(distance))

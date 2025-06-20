@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pypdfium2 as pdfium
 from loguru import logger
+import numpy as np
 
 from mineru.data.data_reader_writer import FileBasedDataWriter
 from mineru.utils.draw_bbox import draw_layout_bbox, draw_span_bbox
@@ -17,6 +18,20 @@ from mineru.backend.vlm.vlm_analyze import doc_analyze as vlm_doc_analyze
 
 pdf_suffixes = [".pdf"]
 image_suffixes = [".png", ".jpeg", ".jpg"]
+
+
+def to_builtin_type(obj):
+    """递归转换numpy类型为Python原生类型，以便JSON序列化"""
+    if isinstance(obj, dict):
+        return {k: to_builtin_type(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_builtin_type(x) for x in obj]
+    elif isinstance(obj, np.generic):
+        return obj.item()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    else:
+        return obj
 
 
 def read_fn(path):
@@ -148,18 +163,21 @@ def do_parse(
             if f_dump_content_list:
                 image_dir = str(os.path.basename(local_image_dir))
                 content_list = pipeline_union_make(pdf_info, MakeMode.CONTENT_LIST, image_dir)
+                content_list = to_builtin_type(content_list)
                 md_writer.write_string(
                     f"{pdf_file_name}_content_list.json",
                     json.dumps(content_list, ensure_ascii=False, indent=4),
                 )
 
             if f_dump_middle_json:
+                middle_json = to_builtin_type(middle_json)
                 md_writer.write_string(
                     f"{pdf_file_name}_middle.json",
                     json.dumps(middle_json, ensure_ascii=False, indent=4),
                 )
 
             if f_dump_model_output:
+                model_json = to_builtin_type(model_json)
                 md_writer.write_string(
                     f"{pdf_file_name}_model.json",
                     json.dumps(model_json, ensure_ascii=False, indent=4),
@@ -208,18 +226,21 @@ def do_parse(
             if f_dump_content_list:
                 image_dir = str(os.path.basename(local_image_dir))
                 content_list = vlm_union_make(pdf_info, MakeMode.CONTENT_LIST, image_dir)
+                content_list = to_builtin_type(content_list)
                 md_writer.write_string(
                     f"{pdf_file_name}_content_list.json",
                     json.dumps(content_list, ensure_ascii=False, indent=4),
                 )
 
             if f_dump_middle_json:
+                middle_json = to_builtin_type(middle_json)
                 md_writer.write_string(
                     f"{pdf_file_name}_middle.json",
                     json.dumps(middle_json, ensure_ascii=False, indent=4),
                 )
 
             if f_dump_model_output:
+                infer_result = to_builtin_type(infer_result)
                 md_writer.write_string(
                     f"{pdf_file_name}_model.json",
                     json.dumps(infer_result, ensure_ascii=False, indent=4),

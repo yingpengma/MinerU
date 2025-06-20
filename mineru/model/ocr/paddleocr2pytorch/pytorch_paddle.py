@@ -50,6 +50,8 @@ root_dir = Path(__file__).resolve().parent
 
 
 class PytorchPaddleOCR(TextSystem):
+    _cpu_warning_shown = False  # 类变量，跟踪是否已经显示过CPU警告
+    
     def __init__(self, *args, **kwargs):
         parser = utility.init_args()
         args = parser.parse_args(args)
@@ -60,8 +62,10 @@ class PytorchPaddleOCR(TextSystem):
         device = get_device()
         if device == 'cpu' and self.lang in ['ch', 'ch_server', 'japan', 'chinese_cht']:
             logger.warning("The current device in use is CPU. To ensure the speed of parsing, the language is automatically switched to ch_lite.")
-            if self.displayer:
+            # 只在第一次显示用户友好的CPU提示信息
+            if self.displayer and not PytorchPaddleOCR._cpu_warning_shown:
                 self.displayer.show("💡 提示：检测到您在使用CPU，系统已自动切换到轻量模式以提升处理速度。")
+                PytorchPaddleOCR._cpu_warning_shown = True
             self.lang = 'ch_lite'
 
         if self.lang in latin_lang:

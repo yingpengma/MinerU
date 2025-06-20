@@ -214,15 +214,11 @@ class BatchAnalyze:
 
                             # 3. 更新检测框坐标
                             if dt_boxes_merged:
-                                dt_boxes_updated = update_det_boxes(dt_boxes_merged, useful_list)
+                                dt_boxes_updated = update_det_boxes(dt_boxes_merged, adjusted_mfdetrec_res)
                             else:
                                 dt_boxes_updated = []
 
-                            # 4. 应用公式检测结果调整
-                            if adjusted_mfdetrec_res:
-                                dt_boxes_updated = get_adjusted_mfdetrec_res(adjusted_mfdetrec_res, dt_boxes_updated)
-
-                            # 5. 生成OCR结果列表
+                            # 4. 生成OCR结果列表
                             if dt_boxes_updated:
                                 ocr_result_list = get_ocr_result_list(
                                     dt_boxes_updated, useful_list, ocr_res_list_dict['ocr_enable'], new_image, _lang
