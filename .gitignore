@@ -10,7 +10,6 @@ data_preprocess_pj1
 data-preparation1
 __pycache__
 *.log
-*.pyc
 .vscode
 debug/
 *.ipynb
@@ -19,11 +18,15 @@ debug/
 # vscode history
 .history
 
-.DS_Store
+*.DS_Store
 .env
+.env.*
 
 bad_words/
 bak/
+
+# LlamaIndex/ChromaDB local storage
+chroma_db_storage/
 
 app/tests/*
 temp/
@@ -31,6 +34,7 @@ tmp/
 tmp
 .vscode
 .vscode/
+.idea/
 ocr_demo
 .coveragerc
 /app/common/__init__.py
@@ -51,3 +55,10 @@ _build/
 
 input/
 output/
+
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
