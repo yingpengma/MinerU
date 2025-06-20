@@ -52,11 +52,17 @@ def run_mineru_rag_pipeline():
     if not all([embed_api_base, embed_api_key, embed_model_name]):
         print("错误：请确保 .env 文件中已设置 EMBED_API_BASE, EMBED_API_KEY, 和 EMBED_MODEL_NAME。")
         return
-    embed_model = OpenAIEmbedding(model=embed_model_name, api_base=embed_api_base, api_key=embed_api_key)
+    embed_model = OpenAIEmbedding(
+        model="text-embedding-ada-002",
+        model_name=embed_model_name,
+        api_base=embed_api_base, 
+        api_key=embed_api_key
+    )
     print(f"嵌入模型已配置为使用云服务接口: {embed_api_base}")
 
     Settings.llm = llm
     Settings.embed_model = embed_model
+    Settings.embed_model.embed_batch_size = 10
 
     # --- NEW STEP 2: 数据预处理 - 为原始 JSON 添加 chunk_id ---
     print("\n--- STEP 2: 数据预处理 - 生成带 chunk_id 的 input.json ---")
