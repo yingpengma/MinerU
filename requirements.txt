@@ -194,6 +194,7 @@ soupsieve==2.7
 SQLAlchemy==2.0.41
 stack-data==0.6.3
 streamlit==1.46.0
+streamlit-pdf-viewer==0.0.25
 stringzilla==3.12.5
 striprtf==0.0.26
 sympy==1.14.0
